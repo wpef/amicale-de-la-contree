@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background */
+  --color-bg: #0B1621;
+  --color-surface: #152238;
+  --color-surface-raised: #1E3352;
+  --color-border: #2A4A6B;
+
+  /* Accents */
+  --color-gold: #D4AF37;
+  --color-gold-dim: #8B7722;
+  --color-accent-red: #E8483F;
+  --color-accent-green: #4CAF50;
+
+  /* Text */
+  --color-text: #E8E0D4;
+  --color-text-dim: #8899AA;
+
+  /* Suits */
+  --color-spades: #2C3E50;
+  --color-hearts: #C0392B;
+  --color-diamonds: #E67E22;
+  --color-clubs: #27AE60;
+
+  /* Teams */
+  --color-team1: #3498DB;
+  --color-team2: #E74C3C;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.game-table {
+  background: radial-gradient(ellipse at center, #1a3a2a 0%, #0d2218 70%, #0B1621 100%);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+}

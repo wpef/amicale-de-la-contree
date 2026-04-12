@@ -1,0 +1,21 @@
+[project]
+id = "amicale-de-la-contree"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = false
+
+[storage]
+enabled = false
