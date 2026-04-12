@@ -72,6 +72,19 @@ export default function LobbyPage() {
           </form>
         </div>
 
+        <div className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-text-dim text-sm">mode local</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <button
+          onClick={() => router.push('/local')}
+          className="w-full rounded-lg border border-border bg-surface px-6 py-4 text-lg font-semibold text-text transition hover:border-gold hover:bg-surface-raised"
+        >
+          Partie locale (sans connexion)
+        </button>
+
         <button
           onClick={() => {
             localStorage.removeItem('playerName');
