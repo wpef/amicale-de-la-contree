@@ -9,6 +9,16 @@ export default function LocalSetupPage() {
   const [names, setNames] = useState(['', '', '', '']);
 
   useEffect(() => {
+    const saved = localStorage.getItem('localGamePlayers');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as string[];
+        if (parsed.length === 4) {
+          setNames(parsed);
+          return;
+        }
+      } catch {}
+    }
     const myName = localStorage.getItem('playerName') ?? '';
     if (myName) {
       setNames((prev) => [myName, prev[1], prev[2], prev[3]]);
