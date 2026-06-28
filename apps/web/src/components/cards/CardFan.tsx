@@ -28,10 +28,14 @@ export function CardFan({
   const total = sortedCards.length;
 
   // If it's my turn but playableCards is empty, all cards are playable (pisser/defausse)
+  const allCardIds = sortedCards.map(cardId);
   const effectivePlayable =
     isMyTurn && playableCards.length === 0 && cards.length > 0
-      ? sortedCards.map(cardId)
+      ? allCardIds
       : playableCards;
+
+  // When ALL cards are playable, no need to highlight/gray - show them all as "normal but clickable"
+  const allPlayable = isMyTurn && effectivePlayable.length === cards.length;
 
   const handleCardClick = (card: CardType) => {
     const id = cardId(card);
@@ -96,9 +100,9 @@ export function CardFan({
             >
               <Card
                 card={card}
-                playable={isPlayable && isMyTurn}
+                playable={isPlayable && isMyTurn && !allPlayable}
                 selected={isSelected}
-                grayed={isMyTurn && !isPlayable}
+                grayed={isMyTurn && !isPlayable && !allPlayable}
                 size="md"
                 onClick={() => handleCardClick(card)}
               />
