@@ -68,21 +68,43 @@ export function Card({
     );
   }
 
+  const isInteractive = !!onClick && (playable || selected);
+
+  if (!isInteractive) {
+    return (
+      <div
+        className={`
+          ${s.card} relative rounded-lg border-2 shadow-md overflow-hidden
+          bg-gradient-to-br ${bgTint}
+          ${grayed ? 'border-gray-300/50 opacity-40 saturate-0' : 'border-gray-200'}
+        `}
+      >
+        <div className="absolute inset-[3px] rounded border border-gray-200/40 pointer-events-none" />
+        <div className={`absolute top-[3px] left-[5px] flex flex-col items-center leading-none ${color}`}>
+          <span className={`${s.rank} font-bold`}>{rank}</span>
+          <span className={`${s.suit}`}>{symbol}</span>
+        </div>
+        <div className={`flex h-full w-full items-center justify-center ${color}`}>
+          <span className={`${s.center} drop-shadow-sm`}>{symbol}</span>
+        </div>
+        <div className={`absolute bottom-[3px] right-[5px] flex flex-col items-center leading-none rotate-180 ${color}`}>
+          <span className={`${s.rank} font-bold`}>{rank}</span>
+          <span className={`${s.suit}`}>{symbol}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
-      disabled={grayed && !selected}
       className={`
         ${s.card} relative rounded-lg border-2 shadow-md overflow-hidden
         bg-gradient-to-br ${bgTint}
-        transition-all duration-200 ease-out
+        transition-all duration-200 ease-out cursor-pointer
         ${selected
           ? '-translate-y-6 scale-110 border-gold ring-2 ring-gold/50 shadow-xl shadow-gold/20 z-50'
-          : playable
-            ? 'border-gold/40 hover:-translate-y-3 hover:shadow-lg cursor-pointer'
-            : grayed
-              ? 'border-gray-300/50 opacity-40 saturate-0 cursor-not-allowed'
-              : 'border-gray-200'
+          : 'border-gold/40 hover:-translate-y-3 hover:shadow-lg'
         }
       `}
     >

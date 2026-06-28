@@ -1,12 +1,13 @@
 'use client';
 
-import type { Card as CardType, CardId, TrickCard, Suit, BidPoints } from '@contree/engine';
+import type { Card as CardType, CardId, TrickCard, Suit, BidPoints, BidAction } from '@contree/engine';
 import { Seat, SUIT_SYMBOLS } from '@contree/engine';
 import { PlayerSeat } from './PlayerSeat';
 import { TrickArea } from './TrickArea';
 import { Scoreboard } from './Scoreboard';
 import { CardFan } from '../cards/CardFan';
 import { BiddingPanel } from '../bidding/BiddingPanel';
+import { BidHistory } from '../bidding/BidHistory';
 
 interface PlayerInfo {
   id: string;
@@ -40,6 +41,7 @@ interface GameTableProps {
   roundTeam1Points?: number;
   roundTeam2Points?: number;
   tricksWon?: { team1: number; team2: number };
+  bids: BidAction[];
   highestBid: { points: number; suit: string } | null;
   currentBidder: string | null;
   canContrer: boolean;
@@ -79,6 +81,7 @@ export function GameTable({
   roundTeam1Points,
   roundTeam2Points,
   tricksWon,
+  bids,
   highestBid,
   currentBidder,
   canContrer,
@@ -91,15 +94,20 @@ export function GameTable({
 }: GameTableProps) {
   const team1Names = players.filter((p) => p.team === 'team1').map((p) => p.name);
   const team2Names = players.filter((p) => p.team === 'team2').map((p) => p.name);
+  const playerNames: Record<string, string> = {};
+  for (const p of players) playerNames[p.id] = p.name;
 
   const isMyTurn =
     (phase === 'playing' && currentPlayer === mySeat) ||
     (phase === 'bidding' && currentBidder === mySeat);
 
+  const contractTeamColor = contract?.team === 'team1' ? 'border-team1' : 'border-team2';
+  const contractTeamNames = contract?.team === 'team1' ? team1Names : team2Names;
+
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between p-2 gap-2">
+      <div className="flex flex-wrap items-start justify-between p-2 gap-2">
         <Scoreboard
           team1Score={team1Score}
           team2Score={team2Score}
@@ -112,23 +120,27 @@ export function GameTable({
           tricksWon={tricksWon}
         />
         {contract && (
-          <div className="rounded-lg border border-gold/30 bg-surface/80 px-3 py-1.5 backdrop-blur">
-            <span className="text-xs text-text-dim">Contrat </span>
-            <span className="font-mono font-bold text-gold">
-              {contract.points} {SUIT_SYMBOLS[contract.suit as Suit]}
-            </span>
-            {contract.contred && !contract.surcontred && (
-              <span className="ml-1 text-xs font-bold text-accent-red">Contre</span>
-            )}
-            {contract.surcontred && (
-              <span className="ml-1 text-xs font-bold text-accent-red">Surcontre</span>
-            )}
+          <div className={`rounded-lg border-2 ${contractTeamColor} bg-surface/80 px-3 py-1.5 backdrop-blur`}>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-sm font-bold text-gold">
+                {contract.points} {SUIT_SYMBOLS[contract.suit as Suit]}
+              </span>
+              {contract.contred && !contract.surcontred && (
+                <span className="text-xs font-bold text-accent-red">x2</span>
+              )}
+              {contract.surcontred && (
+                <span className="text-xs font-bold text-accent-red">x4</span>
+              )}
+            </div>
+            <div className="text-[10px] text-text-dim">
+              pris par {contractTeamNames?.join(' & ')}
+            </div>
           </div>
         )}
       </div>
 
       {/* Game table */}
-      <div className="game-table relative flex flex-1 items-center justify-center rounded-2xl mx-2">
+      <div className="game-table relative flex flex-1 items-center justify-center rounded-2xl mx-1 sm:mx-2 min-h-0">
         {players.map((p) => (
           <PlayerSeat
             key={p.id}
@@ -136,7 +148,7 @@ export function GameTable({
             seat={p.seat}
             team={p.team}
             cardCount={p.cardCount}
-            isCurrentPlayer={p.seat === currentPlayer}
+            isCurrentPlayer={p.seat === currentPlayer || p.seat === currentBidder}
             isDealer={p.seat === dealer}
             isConnected={p.isConnected}
             position={getRelativePosition(p.seat, mySeat)}
@@ -146,23 +158,39 @@ export function GameTable({
         {phase === 'playing' && <TrickArea cards={currentTrick} mySeat={mySeat} />}
 
         {phase === 'bidding' && (
-          <div className="absolute bottom-20 left-1/2 w-80 -translate-x-1/2">
-            <BiddingPanel
-              isMyTurn={currentBidder === mySeat}
-              highestBid={highestBid}
-              canContrer={canContrer}
-              canSurcontrer={canSurcontrer}
-              onBid={onBid}
-              onPass={onPass}
-              onContrer={onContrer}
-              onSurcontrer={onSurcontrer}
-            />
+          <div className="flex gap-3 items-start">
+            {/* Bid history on the left */}
+            {bids.length > 0 && (
+              <div className="hidden sm:block w-40">
+                <BidHistory bids={bids} playerNames={playerNames} />
+              </div>
+            )}
+            {/* Bidding panel center */}
+            <div className="w-72 sm:w-80">
+              <BiddingPanel
+                isMyTurn={currentBidder === mySeat}
+                highestBid={highestBid}
+                canContrer={canContrer}
+                canSurcontrer={canSurcontrer}
+                onBid={onBid}
+                onPass={onPass}
+                onContrer={onContrer}
+                onSurcontrer={onSurcontrer}
+              />
+            </div>
           </div>
         )}
       </div>
 
+      {/* Bid history on mobile (below table, above hand) */}
+      {phase === 'bidding' && bids.length > 0 && (
+        <div className="sm:hidden px-2 pb-1">
+          <BidHistory bids={bids} playerNames={playerNames} />
+        </div>
+      )}
+
       {/* Hand */}
-      <div className="p-4">
+      <div className="p-2 sm:p-4">
         <CardFan
           cards={myHand}
           playableCards={playableCards}

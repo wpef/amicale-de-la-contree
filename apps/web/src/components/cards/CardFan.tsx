@@ -71,7 +71,7 @@ export function CardFan({
       )}
 
       {/* Cards */}
-      <div className="relative flex h-32 items-end justify-center" style={{ width: `${Math.max(total * 50 + 80, 300)}px` }}>
+      <div className="relative flex h-28 sm:h-32 items-end justify-center w-full max-w-[500px]">
         {sortedCards.map((card, i) => {
           const id = cardId(card);
           const isPlayable = playableCards.includes(id);

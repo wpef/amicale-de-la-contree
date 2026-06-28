@@ -249,6 +249,7 @@ export default function LocalPlayPage() {
         currentPlayer={projectedState.currentPlayer}
         dealer={projectedState.dealer}
         currentTrick={projectedState.currentTrick?.cards ?? []}
+        bids={projectedState.bids}
         contract={
           projectedState.contract
             ? {
