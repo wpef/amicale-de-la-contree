@@ -17,16 +17,15 @@ export default function LobbyPage() {
     setPlayerName(name);
   }, [router]);
 
+  const [onlineMsg, setOnlineMsg] = useState('');
+
   const handleCreateGame = () => {
-    // TODO: Call Supabase Edge Function to create game
-    const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-    router.push(`/game/${code}`);
+    setOnlineMsg('Le mode en ligne arrive bientot ! Essaie le mode local en attendant.');
   };
 
   const handleJoinGame = (e: React.FormEvent) => {
     e.preventDefault();
-    if (roomCode.trim().length !== 4) return;
-    router.push(`/game/${roomCode.toUpperCase()}`);
+    setOnlineMsg('Le mode en ligne arrive bientot ! Essaie le mode local en attendant.');
   };
 
   return (
@@ -70,6 +69,10 @@ export default function LobbyPage() {
               Rejoindre
             </button>
           </form>
+
+          {onlineMsg && (
+            <p className="text-center text-sm text-gold">{onlineMsg}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
