@@ -26,21 +26,18 @@ export function CardFan({
   const sortedCards = useMemo(() => sortHand(cards, trumpSuit), [cards, trumpSuit]);
 
   const total = sortedCards.length;
-  const maxSpread = Math.min(total * 5, 45);
-  const spreadPerCard = total > 1 ? maxSpread / (total - 1) : 0;
-  const startAngle = -maxSpread / 2;
 
   // If it's my turn but playableCards is empty, all cards are playable (pisser/defausse)
-  const effectivePlayable = isMyTurn && playableCards.length === 0 && cards.length > 0
-    ? sortedCards.map(cardId)
-    : playableCards;
+  const effectivePlayable =
+    isMyTurn && playableCards.length === 0 && cards.length > 0
+      ? sortedCards.map(cardId)
+      : playableCards;
 
   const handleCardClick = (card: CardType) => {
     const id = cardId(card);
     if (!effectivePlayable.includes(id)) return;
 
     if (selectedCard === id) {
-      // Second click = confirm play
       onPlayCard?.(card);
       setSelectedCard(null);
     } else {
@@ -61,38 +58,39 @@ export function CardFan({
     setSelectedCard(null);
   };
 
+  // Cards overlap each other horizontally, no rotation on mobile for clarity
+  const cardOverlap = total <= 4 ? 0 : Math.min((total - 4) * 4, 30);
+
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-1">
       {/* Confirm/cancel bar */}
       {selectedCard && (
-        <div className="flex gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <Button onClick={handleConfirm} className="px-6 py-1.5 text-sm">
+        <div className="flex gap-2">
+          <Button onClick={handleConfirm} className="px-5 py-1 text-sm">
             Jouer cette carte
           </Button>
-          <Button onClick={handleCancel} variant="ghost" className="px-4 py-1.5 text-sm">
+          <Button onClick={handleCancel} variant="ghost" className="px-3 py-1 text-sm">
             Annuler
           </Button>
         </div>
       )}
 
-      {/* Cards */}
-      <div className="relative flex h-28 sm:h-32 items-end justify-center w-full max-w-[500px]">
+      {/* Cards - horizontal row with overlap */}
+      <div
+        className="flex justify-center items-end"
+        style={{ marginLeft: `${cardOverlap}px` }}
+      >
         {sortedCards.map((card, i) => {
           const id = cardId(card);
           const isPlayable = effectivePlayable.includes(id);
           const isSelected = selectedCard === id;
-          const angle = startAngle + i * spreadPerCard;
-          const yOffset = Math.abs(angle) * 0.5;
 
           return (
             <div
               key={id}
-              className="absolute transition-all duration-300 ease-out"
+              className="transition-all duration-200 ease-out shrink-0"
               style={{
-                transform: `rotate(${angle}deg) translateY(-${yOffset}px)`,
-                transformOrigin: 'bottom center',
-                left: `${(i / Math.max(total - 1, 1)) * (100 - (100 / total)) + (50 / total)}%`,
-                marginLeft: '-34px',
+                marginLeft: i === 0 ? 0 : `-${cardOverlap}px`,
                 zIndex: isSelected ? 50 : i,
               }}
             >
@@ -101,7 +99,7 @@ export function CardFan({
                 playable={isPlayable && isMyTurn}
                 selected={isSelected}
                 grayed={isMyTurn && !isPlayable}
-                size="lg"
+                size="md"
                 onClick={() => handleCardClick(card)}
               />
             </div>

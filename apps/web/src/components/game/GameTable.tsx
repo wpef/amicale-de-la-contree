@@ -97,9 +97,7 @@ export function GameTable({
   const playerNames: Record<string, string> = {};
   for (const p of players) playerNames[p.id] = p.name;
 
-  const isMyTurn =
-    (phase === 'playing' && currentPlayer === mySeat) ||
-    (phase === 'bidding' && currentBidder === mySeat);
+  const isMyTurnToPlay = phase === 'playing' && currentPlayer === mySeat;
 
   const contractTeamColor = contract?.team === 'team1' ? 'border-team1' : 'border-team2';
   const contractTeamNames = contract?.team === 'team1' ? team1Names : team2Names;
@@ -199,7 +197,7 @@ export function GameTable({
           cards={myHand}
           playableCards={playableCards}
           trumpSuit={contract?.suit as Suit | undefined}
-          isMyTurn={isMyTurn}
+          isMyTurn={isMyTurnToPlay}
           onPlayCard={onPlayCard}
         />
       </div>
