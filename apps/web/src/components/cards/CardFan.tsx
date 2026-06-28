@@ -30,9 +30,14 @@ export function CardFan({
   const spreadPerCard = total > 1 ? maxSpread / (total - 1) : 0;
   const startAngle = -maxSpread / 2;
 
+  // If it's my turn but playableCards is empty, all cards are playable (pisser/defausse)
+  const effectivePlayable = isMyTurn && playableCards.length === 0 && cards.length > 0
+    ? sortedCards.map(cardId)
+    : playableCards;
+
   const handleCardClick = (card: CardType) => {
     const id = cardId(card);
-    if (!playableCards.includes(id)) return;
+    if (!effectivePlayable.includes(id)) return;
 
     if (selectedCard === id) {
       // Second click = confirm play
@@ -74,7 +79,7 @@ export function CardFan({
       <div className="relative flex h-28 sm:h-32 items-end justify-center w-full max-w-[500px]">
         {sortedCards.map((card, i) => {
           const id = cardId(card);
-          const isPlayable = playableCards.includes(id);
+          const isPlayable = effectivePlayable.includes(id);
           const isSelected = selectedCard === id;
           const angle = startAngle + i * spreadPerCard;
           const yOffset = Math.abs(angle) * 0.5;

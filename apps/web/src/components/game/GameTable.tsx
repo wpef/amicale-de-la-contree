@@ -104,10 +104,13 @@ export function GameTable({
   const contractTeamColor = contract?.team === 'team1' ? 'border-team1' : 'border-team2';
   const contractTeamNames = contract?.team === 'team1' ? team1Names : team2Names;
 
+  // On mobile during bidding, show a compact layout
+  const isBidding = phase === 'bidding';
+
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       {/* Top bar */}
-      <div className="flex flex-wrap items-start justify-between p-2 gap-2">
+      <div className="flex flex-wrap items-start justify-between p-1.5 sm:p-2 gap-1 sm:gap-2 shrink-0">
         <Scoreboard
           team1Score={team1Score}
           team2Score={team2Score}
@@ -120,7 +123,7 @@ export function GameTable({
           tricksWon={tricksWon}
         />
         {contract && (
-          <div className={`rounded-lg border-2 ${contractTeamColor} bg-surface/80 px-3 py-1.5 backdrop-blur`}>
+          <div className={`rounded-lg border-2 ${contractTeamColor} bg-surface/80 px-2 sm:px-3 py-1 sm:py-1.5 backdrop-blur`}>
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-sm font-bold text-gold">
                 {contract.points} {SUIT_SYMBOLS[contract.suit as Suit]}
@@ -139,8 +142,9 @@ export function GameTable({
         )}
       </div>
 
-      {/* Game table */}
-      <div className="game-table relative flex flex-1 items-center justify-center rounded-2xl mx-1 sm:mx-2 min-h-0">
+      {/* Game table - shrinks on mobile to leave room for cards */}
+      <div className={`game-table relative flex items-center justify-center rounded-2xl mx-1 sm:mx-2 ${isBidding ? 'flex-1 min-h-0 max-h-[45vh] sm:max-h-none' : 'flex-1 min-h-0'}`}>
+        {/* Player seats */}
         {players.map((p) => (
           <PlayerSeat
             key={p.id}
@@ -155,18 +159,18 @@ export function GameTable({
           />
         ))}
 
+        {/* Trick area during play */}
         {phase === 'playing' && <TrickArea cards={currentTrick} mySeat={mySeat} />}
 
-        {phase === 'bidding' && (
-          <div className="flex gap-3 items-start">
-            {/* Bid history on the left */}
+        {/* Bidding panel */}
+        {isBidding && (
+          <div className="flex gap-3 items-start max-w-full px-2">
             {bids.length > 0 && (
-              <div className="hidden sm:block w-40">
+              <div className="hidden sm:block w-40 shrink-0">
                 <BidHistory bids={bids} playerNames={playerNames} />
               </div>
             )}
-            {/* Bidding panel center */}
-            <div className="w-72 sm:w-80">
+            <div className="w-full sm:w-80 max-w-[320px]">
               <BiddingPanel
                 isMyTurn={currentBidder === mySeat}
                 highestBid={highestBid}
@@ -182,15 +186,15 @@ export function GameTable({
         )}
       </div>
 
-      {/* Bid history on mobile (below table, above hand) */}
-      {phase === 'bidding' && bids.length > 0 && (
-        <div className="sm:hidden px-2 pb-1">
+      {/* Bid history on mobile */}
+      {isBidding && bids.length > 0 && (
+        <div className="sm:hidden px-2 py-1 shrink-0">
           <BidHistory bids={bids} playerNames={playerNames} />
         </div>
       )}
 
-      {/* Hand */}
-      <div className="p-2 sm:p-4">
+      {/* Hand - always visible */}
+      <div className="p-2 sm:p-4 shrink-0">
         <CardFan
           cards={myHand}
           playableCards={playableCards}

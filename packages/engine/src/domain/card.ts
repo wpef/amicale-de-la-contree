@@ -110,6 +110,6 @@ export function sortHand(cards: readonly Card[], trumpSuit?: Suit): Card[] {
     if (suitA !== suitB) return suitA - suitB;
 
     const rankOrder = trumpSuit && a.suit === trumpSuit ? TRUMP_RANK_ORDER : PLAIN_RANK_ORDER;
-    return rankOrder[a.rank] - rankOrder[b.rank];
+    return rankOrder[b.rank] - rankOrder[a.rank];
   });
 }
