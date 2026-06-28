@@ -6,6 +6,7 @@ interface PlayerSeatProps {
   team: 'team1' | 'team2';
   cardCount: number;
   isCurrentPlayer: boolean;
+  isDealer: boolean;
   isConnected: boolean;
   position: 'top' | 'left' | 'right' | 'bottom';
 }
@@ -28,6 +29,7 @@ export function PlayerSeat({
   team,
   cardCount,
   isCurrentPlayer,
+  isDealer,
   isConnected,
   position,
 }: PlayerSeatProps) {
@@ -40,6 +42,11 @@ export function PlayerSeat({
       >
         <div className="flex items-center gap-2">
           {!isConnected && <span className="h-2 w-2 rounded-full bg-accent-red" />}
+          {isDealer && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-bg">
+              D
+            </span>
+          )}
           <span className="text-sm font-medium text-text">{name}</span>
           <span className="text-xs text-text-dim">({cardCount})</span>
         </div>

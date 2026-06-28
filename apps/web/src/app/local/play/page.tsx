@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocalGame } from '@/hooks/useLocalGame';
 import { GameTable } from '@/components/game/GameTable';
@@ -8,7 +8,7 @@ import { RoundSummary } from '@/components/game/RoundSummary';
 import { GameOver } from '@/components/game/GameOver';
 import { Button } from '@/components/ui/Button';
 import type { Card, Suit, BidPoints, CardId } from '@contree/engine';
-import { cardId, TeamId, Seat, SEAT_ORDER } from '@contree/engine';
+import { cardId, TeamId, Seat, SEAT_ORDER, calculateTrickPoints, teamForSeat } from '@contree/engine';
 
 export default function LocalPlayPage() {
   const router = useRouter();
@@ -247,6 +247,7 @@ export default function LocalPlayPage() {
         playableCards={projectedState.playableCards}
         phase={projectedState.phase}
         currentPlayer={projectedState.currentPlayer}
+        dealer={projectedState.dealer}
         currentTrick={projectedState.currentTrick?.cards ?? []}
         contract={
           projectedState.contract
@@ -263,6 +264,17 @@ export default function LocalPlayPage() {
         team2Score={projectedState.teams?.team2.score ?? 0}
         targetScore={projectedState.targetScore}
         roundNumber={projectedState.roundNumber}
+        roundTeam1Points={(() => {
+          if (state.phase !== 'playing' || !state.contract) return undefined;
+          const pts = calculateTrickPoints(state.tricks, state.contract.bid.suit);
+          return pts.team1;
+        })()}
+        roundTeam2Points={(() => {
+          if (state.phase !== 'playing' || !state.contract) return undefined;
+          const pts = calculateTrickPoints(state.tricks, state.contract.bid.suit);
+          return pts.team2;
+        })()}
+        tricksWon={projectedState.tricksWon}
         highestBid={
           projectedState.highestBid
             ? { points: projectedState.highestBid.points, suit: projectedState.highestBid.suit }

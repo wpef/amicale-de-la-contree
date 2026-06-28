@@ -82,3 +82,34 @@ export const SUIT_SYMBOLS: Record<Suit, string> = {
   [Suit.Diamonds]: '\u2666',
   [Suit.Clubs]: '\u2663',
 };
+
+const SUIT_ORDER: Record<Suit, number> = {
+  [Suit.Spades]: 0,
+  [Suit.Hearts]: 1,
+  [Suit.Diamonds]: 2,
+  [Suit.Clubs]: 3,
+};
+
+const TRUMP_RANK_ORDER: Record<Rank, number> = {
+  [Rank.Seven]: 0, [Rank.Eight]: 1, [Rank.Queen]: 2,
+  [Rank.King]: 3, [Rank.Ten]: 4, [Rank.Ace]: 5,
+  [Rank.Nine]: 6, [Rank.Jack]: 7,
+};
+
+const PLAIN_RANK_ORDER: Record<Rank, number> = {
+  [Rank.Seven]: 0, [Rank.Eight]: 1, [Rank.Nine]: 2,
+  [Rank.Jack]: 3, [Rank.Queen]: 4, [Rank.Ten]: 5,
+  [Rank.King]: 6, [Rank.Ace]: 7,
+};
+
+/** Sort a hand by suit then rank. Trump suit is placed last. */
+export function sortHand(cards: readonly Card[], trumpSuit?: Suit): Card[] {
+  return [...cards].sort((a, b) => {
+    const suitA = trumpSuit && a.suit === trumpSuit ? 99 : SUIT_ORDER[a.suit];
+    const suitB = trumpSuit && b.suit === trumpSuit ? 99 : SUIT_ORDER[b.suit];
+    if (suitA !== suitB) return suitA - suitB;
+
+    const rankOrder = trumpSuit && a.suit === trumpSuit ? TRUMP_RANK_ORDER : PLAIN_RANK_ORDER;
+    return rankOrder[a.rank] - rankOrder[b.rank];
+  });
+}
