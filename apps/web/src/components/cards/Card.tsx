@@ -20,13 +20,6 @@ const suitTextColors: Record<Suit, string> = {
   [Suit.Clubs]: 'text-[#1a6b3c]',
 };
 
-const suitBgTints: Record<Suit, string> = {
-  [Suit.Spades]: 'from-slate-50 to-slate-100',
-  [Suit.Hearts]: 'from-red-50/40 to-rose-50/30',
-  [Suit.Diamonds]: 'from-amber-50/40 to-orange-50/30',
-  [Suit.Clubs]: 'from-emerald-50/40 to-green-50/30',
-};
-
 const sizes = {
   sm: { card: 'w-10 h-14', rank: 'text-[10px]', suit: 'text-[10px]', center: 'text-lg' },
   md: { card: 'w-[52px] h-[76px]', rank: 'text-xs', suit: 'text-[10px]', center: 'text-2xl' },
@@ -51,7 +44,6 @@ export function Card({
   const symbol = SUIT_SYMBOLS[card.suit];
   const rank = rankDisplay[card.rank];
   const color = suitTextColors[card.suit];
-  const bgTint = suitBgTints[card.suit];
 
   if (faceDown) {
     return (
@@ -68,65 +60,46 @@ export function Card({
     );
   }
 
-  const isInteractive = !!onClick && (playable || selected);
-
-  if (!isInteractive) {
-    return (
-      <div
-        className={`
-          ${s.card} relative rounded-lg border-2 shadow-md overflow-hidden
-          bg-gradient-to-br ${bgTint}
-          ${grayed ? 'border-gray-300/50 opacity-40 saturate-0' : 'border-gray-200'}
-        `}
-      >
-        <div className="absolute inset-[3px] rounded border border-gray-200/40 pointer-events-none" />
-        <div className={`absolute top-[3px] left-[5px] flex flex-col items-center leading-none ${color}`}>
-          <span className={`${s.rank} font-bold`}>{rank}</span>
-          <span className={`${s.suit}`}>{symbol}</span>
-        </div>
-        <div className={`flex h-full w-full items-center justify-center ${color}`}>
-          <span className={`${s.center} drop-shadow-sm`}>{symbol}</span>
-        </div>
-        <div className={`absolute bottom-[3px] right-[5px] flex flex-col items-center leading-none rotate-180 ${color}`}>
-          <span className={`${s.rank} font-bold`}>{rank}</span>
-          <span className={`${s.suit}`}>{symbol}</span>
-        </div>
-      </div>
-    );
+  // Visual state classes
+  let stateClasses: string;
+  if (selected) {
+    stateClasses = '-translate-y-4 scale-105 border-gold ring-2 ring-gold/50 shadow-xl shadow-gold/20 z-50';
+  } else if (grayed) {
+    stateClasses = 'border-gray-300 opacity-35 saturate-0';
+  } else if (playable) {
+    stateClasses = 'border-gold/60 cursor-pointer hover:-translate-y-2 hover:shadow-lg';
+  } else {
+    stateClasses = 'border-gray-300';
   }
 
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        ${s.card} relative rounded-lg border-2 shadow-md overflow-hidden
-        bg-gradient-to-br ${bgTint}
-        transition-all duration-200 ease-out cursor-pointer
-        ${selected
-          ? '-translate-y-6 scale-110 border-gold ring-2 ring-gold/50 shadow-xl shadow-gold/20 z-50'
-          : 'border-gold/40 hover:-translate-y-3 hover:shadow-lg'
-        }
-      `}
-    >
-      {/* Inner frame */}
-      <div className="absolute inset-[3px] rounded border border-gray-200/40 pointer-events-none" />
+  const isClickable = !!onClick && (playable || selected);
 
-      {/* Top-left corner */}
+  const content = (
+    <>
+      <div className="absolute inset-[3px] rounded border border-gray-200/30 pointer-events-none" />
       <div className={`absolute top-[3px] left-[5px] flex flex-col items-center leading-none ${color}`}>
         <span className={`${s.rank} font-bold`}>{rank}</span>
         <span className={`${s.suit}`}>{symbol}</span>
       </div>
-
-      {/* Center suit */}
       <div className={`flex h-full w-full items-center justify-center ${color}`}>
         <span className={`${s.center} drop-shadow-sm`}>{symbol}</span>
       </div>
-
-      {/* Bottom-right corner (rotated) */}
       <div className={`absolute bottom-[3px] right-[5px] flex flex-col items-center leading-none rotate-180 ${color}`}>
         <span className={`${s.rank} font-bold`}>{rank}</span>
         <span className={`${s.suit}`}>{symbol}</span>
       </div>
-    </button>
+    </>
   );
+
+  const baseClasses = `${s.card} relative rounded-lg border-2 shadow-md overflow-hidden bg-white transition-all duration-200 ease-out ${stateClasses}`;
+
+  if (isClickable) {
+    return (
+      <button onClick={onClick} className={baseClasses}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={baseClasses}>{content}</div>;
 }
