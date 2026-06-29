@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Suit, SUIT_SYMBOLS, BID_VALUES, CAPOT_VALUE, GENERALE_VALUE } from '@contree/engine';
+import { Suit, SUIT_SYMBOLS, CAPOT_VALUE, GENERALE_VALUE } from '@contree/engine';
 import type { BidPoints } from '@contree/engine';
 import { Button } from '../ui/Button';
 
@@ -16,7 +16,10 @@ interface BiddingPanelProps {
   onSurcontrer: () => void;
 }
 
-const allBidValues: BidPoints[] = [...BID_VALUES, CAPOT_VALUE, GENERALE_VALUE];
+const SPECIAL_BIDS = [
+  { value: CAPOT_VALUE as BidPoints, label: 'Capot' },
+  { value: GENERALE_VALUE as BidPoints, label: 'Generale' },
+];
 
 export function BiddingPanel({
   isMyTurn,
@@ -28,16 +31,23 @@ export function BiddingPanel({
   onContrer,
   onSurcontrer,
 }: BiddingPanelProps) {
-  const [selectedValue, setSelectedValue] = useState<BidPoints | null>(null);
+  const minBid = highestBid ? highestBid.points + 10 : 80;
+  const [selectedValue, setSelectedValue] = useState<BidPoints>(Math.max(minBid, 80) as BidPoints);
   const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
 
-  const minBid = highestBid ? highestBid.points + 10 : 80;
-  const availableValues = allBidValues.filter((v) => v >= minBid);
+  const canIncrement = selectedValue < 160;
+  const canDecrement = selectedValue > minBid;
+
+  const increment = () => {
+    if (selectedValue < 160) setSelectedValue((selectedValue + 10) as BidPoints);
+  };
+  const decrement = () => {
+    if (selectedValue > minBid) setSelectedValue((selectedValue - 10) as BidPoints);
+  };
 
   const handleBid = () => {
-    if (selectedValue && selectedSuit) {
+    if (selectedSuit && selectedValue >= minBid) {
       onBid(selectedValue, selectedSuit);
-      setSelectedValue(null);
       setSelectedSuit(null);
     }
   };
@@ -51,16 +61,16 @@ export function BiddingPanel({
   }
 
   return (
-    <div className="rounded-lg border border-gold/30 bg-surface/90 p-4 backdrop-blur">
-      <h3 className="mb-3 text-center text-sm font-semibold text-gold">Ton enchere</h3>
+    <div className="rounded-lg border border-gold/30 bg-surface/90 p-3 backdrop-blur">
+      <h3 className="mb-2 text-center text-sm font-semibold text-gold">Ton enchere</h3>
 
       {/* Suit selection */}
-      <div className="mb-3 flex justify-center gap-2">
+      <div className="mb-2 flex justify-center gap-2">
         {Object.values(Suit).map((suit) => (
           <button
             key={suit}
             onClick={() => setSelectedSuit(suit)}
-            className={`rounded-lg px-3 py-2 text-xl transition ${
+            className={`rounded-lg px-3 py-1.5 text-xl transition ${
               selectedSuit === suit
                 ? 'bg-gold/20 ring-2 ring-gold'
                 : 'bg-surface-raised hover:bg-border'
@@ -71,22 +81,45 @@ export function BiddingPanel({
         ))}
       </div>
 
-      {/* Value selection */}
-      <div className="mb-3 flex flex-wrap justify-center gap-1">
-        {availableValues.map((value) => (
-          <button
-            key={value}
-            onClick={() => setSelectedValue(value)}
-            className={`rounded px-2 py-1 text-xs font-mono transition ${
-              selectedValue === value
-                ? 'bg-gold text-bg'
-                : 'bg-surface-raised text-text hover:bg-border'
-            }`}
-          >
-            {value === CAPOT_VALUE ? 'Capot' : value === GENERALE_VALUE ? 'Generale' : value}
-          </button>
-        ))}
+      {/* Value: +/- stepper */}
+      <div className="mb-2 flex items-center justify-center gap-3">
+        <button
+          onClick={decrement}
+          disabled={!canDecrement}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-raised text-lg font-bold text-text transition hover:bg-border disabled:opacity-30"
+        >
+          -
+        </button>
+        <span className="w-16 text-center font-mono text-2xl font-bold text-gold">
+          {selectedValue}
+        </span>
+        <button
+          onClick={increment}
+          disabled={!canIncrement}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-raised text-lg font-bold text-text transition hover:bg-border disabled:opacity-30"
+        >
+          +
+        </button>
       </div>
+
+      {/* Special bids */}
+      {minBid <= GENERALE_VALUE && (
+        <div className="mb-2 flex justify-center gap-2">
+          {SPECIAL_BIDS.filter((s) => s.value >= minBid).map((special) => (
+            <button
+              key={special.value}
+              onClick={() => setSelectedValue(special.value)}
+              className={`rounded px-3 py-1 text-xs font-semibold transition ${
+                selectedValue === special.value
+                  ? 'bg-gold text-bg'
+                  : 'bg-surface-raised text-text hover:bg-border'
+              }`}
+            >
+              {special.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex gap-2">
@@ -105,10 +138,11 @@ export function BiddingPanel({
         )}
         <Button
           onClick={handleBid}
-          disabled={!selectedValue || !selectedSuit}
+          disabled={!selectedSuit || selectedValue < minBid}
           className="flex-1"
         >
-          Enchérir
+          {selectedValue}
+          {selectedSuit ? ` ${SUIT_SYMBOLS[selectedSuit]}` : ''}
         </Button>
       </div>
     </div>

@@ -5,20 +5,16 @@ import type { Card as CardType } from '@contree/engine';
 
 interface CardProps {
   card: CardType;
-  /** Card can be clicked */
   playable?: boolean;
-  /** Card is visually selected (lifted) */
   selected?: boolean;
-  /** Card is visually dimmed (can't be played) */
   grayed?: boolean;
-  /** Card has gold border (constrained choice) */
   highlight?: boolean;
   faceDown?: boolean;
   size?: 'sm' | 'md' | 'lg';
   onClick?: () => void;
 }
 
-const suitTextColors: Record<Suit, string> = {
+const suitColors: Record<Suit, string> = {
   [Suit.Spades]: 'text-[#1a1a2e]',
   [Suit.Hearts]: 'text-[#c0392b]',
   [Suit.Diamonds]: 'text-[#e67e22]',
@@ -26,9 +22,9 @@ const suitTextColors: Record<Suit, string> = {
 };
 
 const sizes = {
-  sm: { card: 'w-10 h-14', corner: 'text-[8px]', center: 'text-base', centerSuit: 'text-[7px]' },
-  md: { card: 'w-[52px] h-[76px]', corner: 'text-[9px]', center: 'text-xl', centerSuit: 'text-[9px]' },
-  lg: { card: 'w-[68px] h-[98px]', corner: 'text-[10px]', center: 'text-2xl', centerSuit: 'text-xs' },
+  sm: { card: 'w-10 h-14', rank: 'text-lg', corner: 'text-[9px]' },
+  md: { card: 'w-[52px] h-[76px]', rank: 'text-2xl', corner: 'text-[11px]' },
+  lg: { card: 'w-[68px] h-[98px]', rank: 'text-3xl', corner: 'text-sm' },
 };
 
 const rankDisplay: Record<Rank, string> = {
@@ -49,7 +45,7 @@ export function Card({
   const s = sizes[size];
   const symbol = SUIT_SYMBOLS[card.suit];
   const rank = rankDisplay[card.rank];
-  const color = suitTextColors[card.suit];
+  const color = suitColors[card.suit];
 
   if (faceDown) {
     return (
@@ -70,7 +66,7 @@ export function Card({
   if (selected) {
     stateClasses = '-translate-y-4 scale-105 border-gold ring-2 ring-gold/50 shadow-xl shadow-gold/20 z-50';
   } else if (grayed) {
-    stateClasses = 'border-gray-300 opacity-35 saturate-0';
+    stateClasses = 'border-gray-300 opacity-30';
   } else if (highlight) {
     stateClasses = 'border-gold/60 cursor-pointer hover:-translate-y-2 hover:shadow-lg';
   } else if (playable) {
@@ -81,21 +77,19 @@ export function Card({
 
   const isClickable = !!onClick && (playable || selected);
 
-  // Layout: suit symbol in corners, rank big in center
   const content = (
     <>
-      <div className="absolute inset-[3px] rounded border border-gray-200/30 pointer-events-none" />
-      {/* Top-left: suit symbol */}
-      <div className={`absolute top-[3px] left-[4px] leading-none ${color}`}>
+      {/* Top-left corner: suit */}
+      <div className={`absolute top-1 left-1 ${color}`}>
         <span className={`${s.corner} font-bold`}>{symbol}</span>
       </div>
-      {/* Center: rank big + small suit below */}
+      {/* Center: big rank + suit below */}
       <div className={`flex h-full w-full flex-col items-center justify-center ${color}`}>
-        <span className={`${s.center} font-bold leading-none`}>{rank}</span>
-        <span className={`${s.centerSuit} leading-none mt-0.5`}>{symbol}</span>
+        <span className={`${s.rank} font-extrabold leading-none`}>{rank}</span>
+        <span className="text-sm leading-none mt-0.5">{symbol}</span>
       </div>
-      {/* Bottom-right: suit symbol (rotated) */}
-      <div className={`absolute bottom-[3px] right-[4px] leading-none rotate-180 ${color}`}>
+      {/* Bottom-right corner: suit (rotated) */}
+      <div className={`absolute bottom-1 right-1 rotate-180 ${color}`}>
         <span className={`${s.corner} font-bold`}>{symbol}</span>
       </div>
     </>
@@ -104,11 +98,7 @@ export function Card({
   const baseClasses = `${s.card} relative rounded-lg border-2 shadow-md overflow-hidden bg-white transition-all duration-200 ease-out ${stateClasses}`;
 
   if (isClickable) {
-    return (
-      <button onClick={onClick} className={baseClasses}>
-        {content}
-      </button>
-    );
+    return <button onClick={onClick} className={baseClasses}>{content}</button>;
   }
 
   return <div className={baseClasses}>{content}</div>;
