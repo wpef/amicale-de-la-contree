@@ -100,9 +100,10 @@ export function CardFan({
             >
               <Card
                 card={card}
-                playable={isPlayable && isMyTurn && !allPlayable}
+                playable={isPlayable && isMyTurn}
                 selected={isSelected}
-                grayed={isMyTurn && !isPlayable && !allPlayable}
+                grayed={isMyTurn && !isPlayable}
+                highlight={isMyTurn && !allPlayable && isPlayable}
                 size="md"
                 onClick={() => handleCardClick(card)}
               />
