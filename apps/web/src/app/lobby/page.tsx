@@ -2,30 +2,59 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePlayer } from '@/hooks/usePlayer';
+import { createOnlineGame, joinOnlineGame } from '@/lib/online';
 
 export default function LobbyPage() {
-  const [playerName, setPlayerName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
   const router = useRouter();
+  const { userId, playerName, isLoading, signIn } = usePlayer();
+  const [roomCode, setRoomCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [localName, setLocalName] = useState<string | null>(null);
 
+  // Ensure the player has an anonymous session tied to their pseudo.
   useEffect(() => {
-    const name = localStorage.getItem('playerName');
-    if (!name) {
+    if (isLoading) return;
+    const stored = localStorage.getItem('playerName');
+    if (!stored) {
       router.push('/');
       return;
     }
-    setPlayerName(name);
-  }, [router]);
+    setLocalName(stored);
+    if (!userId) {
+      signIn(stored).catch((e) => setError(e.message));
+    }
+  }, [isLoading, userId, signIn, router]);
 
-  const [onlineMsg, setOnlineMsg] = useState('');
+  const ready = !!userId;
+  const displayName = playerName ?? localName;
 
-  const handleCreateGame = () => {
-    setOnlineMsg('Le mode en ligne arrive bientot ! Essaie le mode local en attendant.');
+  const handleCreateGame = async () => {
+    if (!ready || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { gameId } = await createOnlineGame();
+      router.push(`/online?g=${gameId}`);
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
   };
 
-  const handleJoinGame = (e: React.FormEvent) => {
+  const handleJoinGame = async (e: React.FormEvent) => {
     e.preventDefault();
-    setOnlineMsg('Le mode en ligne arrive bientot ! Essaie le mode local en attendant.');
+    if (!ready || busy || roomCode.trim().length !== 4) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { gameId } = await joinOnlineGame(roomCode.trim());
+      router.push(`/online?g=${gameId}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
   };
 
   return (
@@ -34,14 +63,18 @@ export default function LobbyPage() {
         <div className="text-center">
           <h1 className="font-display text-3xl font-bold text-gold">Salon</h1>
           <p className="mt-1 text-text-dim">
-            Salut <span className="text-text font-medium">{playerName}</span> !
+            Salut <span className="text-text font-medium">{displayName}</span> !
           </p>
+          {!ready && (
+            <p className="mt-1 text-xs text-text-dim">Connexion en cours...</p>
+          )}
         </div>
 
         <div className="space-y-4">
           <button
             onClick={handleCreateGame}
-            className="w-full rounded-lg bg-gold px-6 py-4 text-lg font-semibold text-bg transition hover:bg-gold-dim"
+            disabled={!ready || busy}
+            className="w-full rounded-lg bg-gold px-6 py-4 text-lg font-semibold text-bg transition hover:bg-gold-dim disabled:cursor-not-allowed disabled:opacity-40"
           >
             Creer une partie
           </button>
@@ -63,16 +96,14 @@ export default function LobbyPage() {
             />
             <button
               type="submit"
-              disabled={roomCode.trim().length !== 4}
+              disabled={!ready || busy || roomCode.trim().length !== 4}
               className="rounded-lg bg-surface-raised px-6 py-3 font-semibold text-text transition hover:bg-border disabled:cursor-not-allowed disabled:opacity-40"
             >
               Rejoindre
             </button>
           </form>
 
-          {onlineMsg && (
-            <p className="text-center text-sm text-gold">{onlineMsg}</p>
-          )}
+          {error && <p className="text-center text-sm text-accent-red">{error}</p>}
         </div>
 
         <div className="flex items-center gap-4">
