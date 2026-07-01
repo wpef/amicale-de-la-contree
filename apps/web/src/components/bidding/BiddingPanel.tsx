@@ -5,6 +5,13 @@ import { Suit, SUIT_SYMBOLS, CAPOT_VALUE, GENERALE_VALUE } from '@contree/engine
 import type { BidPoints } from '@contree/engine';
 import { Button } from '../ui/Button';
 
+const suitDisplayColors: Record<Suit, string> = {
+  [Suit.Spades]: '#4a6fa5',
+  [Suit.Hearts]: '#e74c3c',
+  [Suit.Diamonds]: '#f39c12',
+  [Suit.Clubs]: '#2ecc71',
+};
+
 interface BiddingPanelProps {
   isMyTurn: boolean;
   highestBid: { points: number; suit: string } | null;
@@ -70,11 +77,12 @@ export function BiddingPanel({
           <button
             key={suit}
             onClick={() => setSelectedSuit(suit)}
-            className={`rounded-lg px-3 py-1.5 text-xl transition ${
+            className={`rounded-lg px-3 py-1.5 text-2xl font-bold transition ${
               selectedSuit === suit
-                ? 'bg-gold/20 ring-2 ring-gold'
+                ? 'ring-2 ring-gold bg-gold/10'
                 : 'bg-surface-raised hover:bg-border'
             }`}
+            style={{ color: suitDisplayColors[suit] }}
           >
             {SUIT_SYMBOLS[suit]}
           </button>
@@ -142,7 +150,11 @@ export function BiddingPanel({
           className="flex-1"
         >
           {selectedValue}
-          {selectedSuit ? ` ${SUIT_SYMBOLS[selectedSuit]}` : ''}
+          {selectedSuit && (
+            <span style={{ color: suitDisplayColors[selectedSuit] }} className="ml-1 text-lg">
+              {SUIT_SYMBOLS[selectedSuit]}
+            </span>
+          )}
         </Button>
       </div>
     </div>

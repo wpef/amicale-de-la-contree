@@ -32,8 +32,7 @@ const rankDisplay: Record<Rank, string> = {
   [Rank.Jack]: 'J', [Rank.Queen]: 'Q', [Rank.King]: 'K', [Rank.Ace]: 'A',
 };
 
-const isFigure = (rank: Rank) =>
-  rank === Rank.Jack || rank === Rank.Queen || rank === Rank.King || rank === Rank.Ace;
+// Removed isFigure - all ranks use suit color
 
 function SuitFiligrane({ suit, color }: { suit: Suit; color: string }) {
   switch (suit) {
@@ -86,7 +85,7 @@ function CardSVG({ card, w, h }: { card: CardType; w: number; h: number }) {
   const rank = rankDisplay[card.rank];
   const color = suitColors[card.suit];
   const symbol = SUIT_SYMBOLS[card.suit];
-  const valueColor = isFigure(card.rank) ? '#d4af37' : color;
+  const valueColor = color;
   const fontSize = rank === '10' ? 46 : 52;
   const cornerSize = rank === '10' ? 12 : 13;
 
