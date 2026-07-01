@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import type { Card as CardType, CardId, TrickCard, Suit, BidPoints, BidAction } from '@contree/engine';
 import { Seat, SUIT_SYMBOLS } from '@contree/engine';
 import { PlayerSeat } from './PlayerSeat';
@@ -7,7 +8,6 @@ import { TrickArea } from './TrickArea';
 import { Scoreboard } from './Scoreboard';
 import { CardFan } from '../cards/CardFan';
 import { BiddingPanel } from '../bidding/BiddingPanel';
-import { BidHistory } from '../bidding/BidHistory';
 
 interface PlayerInfo {
   id: string;
@@ -64,6 +64,20 @@ function getRelativePosition(
   return (['bottom', 'right', 'top', 'left'] as const)[rel];
 }
 
+/** Get the last bid action for each player */
+function getLastBids(bids: BidAction[], players: PlayerInfo[]) {
+  const lastBids: Record<string, { type: string; points?: number; suit?: string }> = {};
+  for (const action of bids) {
+    const pid = action.type === 'bid' ? action.bid.playerId : action.playerId;
+    if (action.type === 'bid') {
+      lastBids[pid] = { type: 'bid', points: action.bid.points, suit: action.bid.suit };
+    } else {
+      lastBids[pid] = { type: action.type };
+    }
+  }
+  return lastBids;
+}
+
 export function GameTable({
   players,
   mySeat,
@@ -94,16 +108,14 @@ export function GameTable({
 }: GameTableProps) {
   const team1Names = players.filter((p) => p.team === 'team1').map((p) => p.name);
   const team2Names = players.filter((p) => p.team === 'team2').map((p) => p.name);
-  const playerNames: Record<string, string> = {};
-  for (const p of players) playerNames[p.id] = p.name;
 
   const isMyTurnToPlay = phase === 'playing' && currentPlayer === mySeat;
+  const isBidding = phase === 'bidding';
 
   const contractTeamColor = contract?.team === 'team1' ? 'border-team1' : 'border-team2';
   const contractTeamNames = contract?.team === 'team1' ? team1Names : team2Names;
 
-  // On mobile during bidding, show a compact layout
-  const isBidding = phase === 'bidding';
+  const lastBids = useMemo(() => (isBidding ? getLastBids(bids, players) : {}), [bids, isBidding, players]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -140,58 +152,52 @@ export function GameTable({
         )}
       </div>
 
-      {/* Game table - shrinks on mobile to leave room for cards */}
+      {/* Game table */}
       <div className={`game-table relative flex items-center justify-center rounded-2xl mx-1 sm:mx-2 ${isBidding ? 'flex-1 min-h-0 max-h-[45vh] sm:max-h-none' : 'flex-1 min-h-0'}`}>
-        {/* Player seats */}
-        {players.map((p) => (
-          <PlayerSeat
-            key={p.id}
-            name={p.name}
-            seat={p.seat}
-            team={p.team}
-            cardCount={p.cardCount}
-            isCurrentPlayer={p.seat === currentPlayer || p.seat === currentBidder}
-            isDealer={p.seat === dealer}
-            isConnected={p.isConnected}
-            position={getRelativePosition(p.seat, mySeat)}
-          />
-        ))}
+        {/* Player seats with bid annotations */}
+        {players.map((p) => {
+          const bid = lastBids[p.id];
+          return (
+            <PlayerSeat
+              key={p.id}
+              name={p.name}
+              seat={p.seat}
+              team={p.team}
+              cardCount={p.cardCount}
+              isCurrentPlayer={p.seat === currentPlayer || p.seat === currentBidder}
+              isDealer={p.seat === dealer}
+              isConnected={p.isConnected}
+              position={getRelativePosition(p.seat, mySeat)}
+              lastBid={
+                isBidding && bid
+                  ? { type: bid.type as 'pass' | 'bid' | 'contrer' | 'surcontrer', points: bid.points, suit: bid.suit as Suit | undefined }
+                  : null
+              }
+            />
+          );
+        })}
 
         {/* Trick area during play */}
         {phase === 'playing' && <TrickArea cards={currentTrick} mySeat={mySeat} />}
 
-        {/* Bidding panel */}
+        {/* Bidding panel - centered, no more BidHistory box */}
         {isBidding && (
-          <div className="flex gap-3 items-start max-w-full px-2">
-            {bids.length > 0 && (
-              <div className="hidden sm:block w-40 shrink-0">
-                <BidHistory bids={bids} playerNames={playerNames} />
-              </div>
-            )}
-            <div className="w-full sm:w-80 max-w-[320px]">
-              <BiddingPanel
-                isMyTurn={currentBidder === mySeat}
-                highestBid={highestBid}
-                canContrer={canContrer}
-                canSurcontrer={canSurcontrer}
-                onBid={onBid}
-                onPass={onPass}
-                onContrer={onContrer}
-                onSurcontrer={onSurcontrer}
-              />
-            </div>
+          <div className="w-full sm:w-80 max-w-[320px] px-2">
+            <BiddingPanel
+              isMyTurn={currentBidder === mySeat}
+              highestBid={highestBid}
+              canContrer={canContrer}
+              canSurcontrer={canSurcontrer}
+              onBid={onBid}
+              onPass={onPass}
+              onContrer={onContrer}
+              onSurcontrer={onSurcontrer}
+            />
           </div>
         )}
       </div>
 
-      {/* Bid history on mobile */}
-      {isBidding && bids.length > 0 && (
-        <div className="sm:hidden px-2 py-1 shrink-0">
-          <BidHistory bids={bids} playerNames={playerNames} />
-        </div>
-      )}
-
-      {/* Hand - always visible */}
+      {/* Hand */}
       <div className="p-2 sm:p-4 shrink-0">
         <CardFan
           cards={myHand}
