@@ -67,7 +67,11 @@ ALTER TABLE hands ENABLE ROW LEVEL SECURITY;
 -- The games and game_players SELECT policies must reference each other's
 -- tables. Referencing them directly makes RLS recurse infinitely, so we use
 -- SECURITY DEFINER helpers that read the tables WITHOUT re-triggering RLS.
-CREATE OR REPLACE FUNCTION public.is_participant(gid uuid)
+-- They live in a `private` schema so they are NOT exposed as REST RPCs.
+CREATE SCHEMA IF NOT EXISTS private;
+GRANT USAGE ON SCHEMA private TO authenticated, anon;
+
+CREATE OR REPLACE FUNCTION private.is_participant(gid uuid)
 RETURNS boolean
 LANGUAGE sql
 SECURITY DEFINER
@@ -79,7 +83,7 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_lobby(gid uuid)
+CREATE OR REPLACE FUNCTION private.is_lobby(gid uuid)
 RETURNS boolean
 LANGUAGE sql
 SECURITY DEFINER
@@ -114,7 +118,7 @@ CREATE POLICY "Players can update own profile"
 -- Lobby games are visible to everyone (for joining); active games only to participants
 CREATE POLICY "Lobby games are publicly readable"
   ON games FOR SELECT
-  USING (status = 'lobby' OR public.is_participant(id));
+  USING (status = 'lobby' OR private.is_participant(id));
 
 -- Any authenticated user can create a game
 CREATE POLICY "Authenticated users can create games"
@@ -124,7 +128,7 @@ CREATE POLICY "Authenticated users can create games"
 -- Only participants can update game state
 CREATE POLICY "Participants can update games"
   ON games FOR UPDATE
-  USING (public.is_participant(id));
+  USING (private.is_participant(id));
 
 -- ============================================
 -- POLICIES: GAME PLAYERS
@@ -132,7 +136,7 @@ CREATE POLICY "Participants can update games"
 -- Game players are readable by all participants of the game (and in lobby)
 CREATE POLICY "Game players are readable by participants"
   ON game_players FOR SELECT
-  USING (public.is_lobby(game_id) OR public.is_participant(game_id));
+  USING (private.is_lobby(game_id) OR private.is_participant(game_id));
 
 -- Players can join games
 CREATE POLICY "Players can join games"
