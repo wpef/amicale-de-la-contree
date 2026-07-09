@@ -6,25 +6,55 @@ import { usePlayer } from '@/hooks/usePlayer';
 import { useOnlineGame } from '@/hooks/useOnlineGame';
 import { WaitingRoom } from '@/components/lobby/WaitingRoom';
 import { OnlineGameView } from '@/components/game/OnlineGameView';
+import { PageLoader } from '@/components/ui/Spinner';
+import { joinOnlineGame } from '@/lib/online';
 import { getSupabase } from '@/lib/supabase/client';
 
 function OnlineGame() {
   const router = useRouter();
   const params = useSearchParams();
   const gameId = params.get('g');
+  const joinCode = params.get('join');
   const { userId, isLoading: authLoading, signIn } = usePlayer();
   const [busy, setBusy] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
-  // Restore the anonymous session on reconnection (e.g. page refresh).
+  // Restore the anonymous session on reconnection (or for an invited guest).
   useEffect(() => {
     if (authLoading || userId) return;
     const name = localStorage.getItem('playerName');
-    if (name) signIn(name).catch(() => router.push('/'));
-    else router.push('/');
-  }, [authLoading, userId, signIn, router]);
+    // Carry the invite code through the name-entry screen if there's no session.
+    const target = joinCode ? `/?join=${joinCode}` : '/';
+    if (name) signIn(name).catch(() => router.push(target));
+    else router.push(target);
+  }, [authLoading, userId, signIn, router, joinCode]);
+
+  // Invite link: resolve the room code to a game and join it, then swap the URL.
+  useEffect(() => {
+    if (gameId || !joinCode || !userId || joining) return;
+    setJoining(true);
+    joinOnlineGame(joinCode)
+      .then(({ gameId: id }) => router.replace(`/online?g=${id}`))
+      .catch((e) => setJoinError((e as Error).message));
+  }, [gameId, joinCode, userId, joining, router]);
 
   const hook = useOnlineGame(gameId);
   const { game, gamePlayers, playerNames, isLoading, sendAction } = hook;
+
+  if (!gameId && joinCode) {
+    if (joinError) {
+      return (
+        <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+          <p className="text-accent-red">{joinError}</p>
+          <button onClick={() => router.push('/lobby')} className="text-sm text-text-dim hover:text-text">
+            Retour au salon
+          </button>
+        </main>
+      );
+    }
+    return <PageLoader label="Connexion à la partie..." />;
+  }
 
   if (!gameId) {
     return (
@@ -35,11 +65,7 @@ function OnlineGame() {
   }
 
   if (isLoading || !game) {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-text-dim">Chargement...</p>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   const inLobby =
@@ -84,13 +110,7 @@ function OnlineGame() {
 
 export default function OnlinePage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center">
-          <p className="text-text-dim">Chargement...</p>
-        </main>
-      }
-    >
+    <Suspense fallback={<PageLoader />}>
       <OnlineGame />
     </Suspense>
   );

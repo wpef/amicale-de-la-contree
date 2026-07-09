@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Suit, SUIT_SYMBOLS, CAPOT_VALUE, GENERALE_VALUE } from '@contree/engine';
 import type { BidPoints } from '@contree/engine';
 import { Button } from '../ui/Button';
@@ -41,6 +41,12 @@ export function BiddingPanel({
   const minBid = highestBid ? highestBid.points + 10 : 80;
   const [selectedValue, setSelectedValue] = useState<BidPoints>(Math.max(minBid, 80) as BidPoints);
   const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
+
+  // Follow the last announced bid: never let the stepper sit below the minimum
+  // legal value (otherwise the player has to click "+" repeatedly each turn).
+  useEffect(() => {
+    setSelectedValue((v) => (v < minBid ? (minBid as BidPoints) : v));
+  }, [minBid]);
 
   const canIncrement = selectedValue < 160;
   const canDecrement = selectedValue > minBid;

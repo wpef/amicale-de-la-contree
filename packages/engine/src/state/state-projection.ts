@@ -9,6 +9,7 @@ import type { RoundScore } from '../domain/round.js';
 import type { TeamId, Team } from '../domain/team.js';
 import type { Seat } from '../utils/seat.js';
 import { getPlayableCards } from '../rules/play-validation.js';
+import { calculateTrickPoints } from '../rules/scoring.js';
 
 /**
  * Projected game state visible to a specific player.
@@ -46,6 +47,8 @@ export interface ProjectedGameState {
   readonly lastTrick: ProjectedTrick | null;
   readonly currentPlayer: Seat | null;
   readonly tricksWon: { team1: number; team2: number };
+  /** Running card points captured so far this round, per team. */
+  readonly roundPoints: { team1: number; team2: number };
 
   // Scoring
   readonly beloteDeclared: boolean;
@@ -154,6 +157,12 @@ export function projectState(state: GameState, playerId: string): ProjectedGameS
     }
   }
 
+  // Running card points captured so far this round (visible during play).
+  const roundPoints =
+    state.phase === 'playing' && state.contract
+      ? calculateTrickPoints(state.tricks, state.contract.bid.suit)
+      : { team1: 0, team2: 0 };
+
   return {
     id: state.id,
     roomCode: state.roomCode,
@@ -174,6 +183,7 @@ export function projectState(state: GameState, playerId: string): ProjectedGameS
     lastTrick,
     currentPlayer: state.currentPlayer,
     tricksWon,
+    roundPoints,
     beloteDeclared: state.beloteDeclared,
     roundScore: state.roundScore,
     roundHistory: state.roundHistory,

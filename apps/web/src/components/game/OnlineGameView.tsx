@@ -113,11 +113,40 @@ export function OnlineGameView({ hook }: OnlineGameViewProps) {
     isConnected: p.isConnected,
   }));
 
+  // Whose turn is it? (bidding -> currentBidder, playing -> currentPlayer)
+  const actorSeat =
+    projected.phase === 'bidding'
+      ? projected.currentBidder
+      : projected.phase === 'playing'
+        ? projected.currentPlayer
+        : null;
+  const isMyTurn = actorSeat != null && actorSeat === projected.mySeat;
+  const actorName = projected.players.find((p) => p.seat === actorSeat)?.name;
+  const turnLabel = actorSeat
+    ? isMyTurn
+      ? 'À toi de jouer'
+      : `Au tour de ${actorName}`
+    : null;
+
   return (
     <div className="relative">
       <div className="absolute left-2 top-2 z-50 rounded bg-surface/80 px-2 py-1 text-xs text-text-dim backdrop-blur">
         {projected.roomCode} &middot; {projected.players.find((p) => p.seat === projected.mySeat)?.name}
       </div>
+
+      {turnLabel && (
+        <div className="pointer-events-none absolute inset-x-0 top-2 z-40 flex justify-center">
+          <div
+            className={`rounded-full px-4 py-1 text-sm font-semibold shadow-lg backdrop-blur transition ${
+              isMyTurn
+                ? 'animate-pulse bg-gold text-bg'
+                : 'bg-surface/90 text-text-dim'
+            }`}
+          >
+            {turnLabel}
+          </div>
+        </div>
+      )}
       {error && (
         <div className="absolute right-2 top-2 z-50 rounded bg-accent-red/20 px-2 py-1 text-xs text-accent-red">
           {error}
@@ -149,6 +178,8 @@ export function OnlineGameView({ hook }: OnlineGameViewProps) {
         team2Score={projected.teams?.team2.score ?? 0}
         targetScore={projected.targetScore}
         roundNumber={projected.roundNumber}
+        roundTeam1Points={projected.phase === 'playing' ? projected.roundPoints.team1 : undefined}
+        roundTeam2Points={projected.phase === 'playing' ? projected.roundPoints.team2 : undefined}
         tricksWon={projected.tricksWon}
         highestBid={
           projected.highestBid

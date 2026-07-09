@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '../ui/Button';
+import { Spinner } from '../ui/Spinner';
 import type { DbGamePlayer } from '@/lib/supabase/types';
 
 interface WaitingRoomProps {
@@ -34,6 +36,18 @@ export function WaitingRoom({
   const team1 = players.filter((p) => p.team === 'team1');
   const team2 = players.filter((p) => p.team === 'team2');
   const full = players.length === 4;
+  const [copied, setCopied] = useState(false);
+
+  const copyInvite = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?join=${roomCode}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt('Copie ce lien pour inviter :', url);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const renderPlayer = (p: DbGamePlayer) => (
     <div
@@ -53,6 +67,12 @@ export function WaitingRoom({
         <p className="mt-2 text-text-dim text-sm">
           {full ? 'Tout le monde est la !' : `En attente de joueurs (${players.length}/4)`}
         </p>
+        <button
+          onClick={copyInvite}
+          className="mt-3 rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold transition hover:bg-gold/20"
+        >
+          {copied ? '✓ Lien copié !' : '🔗 Copier le lien d’invitation'}
+        </button>
       </div>
 
       <div className="grid w-full max-w-md grid-cols-2 gap-4">
@@ -86,8 +106,8 @@ export function WaitingRoom({
           <Button variant="secondary" className="flex-1" onClick={onRandomize} disabled={busy || !full}>
             Tirer les rois
           </Button>
-          <Button className="flex-1" onClick={onStart} disabled={busy || !full}>
-            Lancer la partie
+          <Button className="flex flex-1 items-center justify-center gap-2" onClick={onStart} disabled={busy || !full}>
+            {busy ? <Spinner label="Lancement..." /> : 'Lancer la partie'}
           </Button>
         </div>
       ) : (

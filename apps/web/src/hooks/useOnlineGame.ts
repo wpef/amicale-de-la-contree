@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getSupabase } from '@/lib/supabase/client';
 import type { DbGame, DbGamePlayer } from '@/lib/supabase/types';
 import {
@@ -11,7 +11,7 @@ import {
   type CardId,
   type GameAction,
 } from '@contree/engine';
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import type { RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js';
 
 export interface OnlineGameHook {
   /** Raw game row (public state lives in `round_state`). */
@@ -30,6 +30,8 @@ export interface OnlineGameHook {
   error: string | null;
   /** Send a game action to the server (Edge Function). */
   sendAction: (action: Partial<GameAction> & { type: string }) => Promise<string | undefined>;
+  /** Re-fetch game, players and hand from the DB on demand. */
+  refresh: () => Promise<void>;
 }
 
 function isEngineState(rs: unknown): rs is PublicGameState {
@@ -44,26 +46,18 @@ export function useOnlineGame(gameId: string | null): OnlineGameHook {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!gameId) return;
-    const supabase = getSupabase();
-    let cancelled = false;
-
-    const load = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id ?? null;
-      if (cancelled) return;
-      setUserId(uid);
-
+  // Fetch the current game, membership and this player's hand from the DB.
+  const fetchAll = useCallback(
+    async (supabase: SupabaseClient, uid: string | null) => {
+      if (!gameId) return;
       const [{ data: gameData }, { data: playerData }] = await Promise.all([
-        supabase.from('games').select('*').eq('id', gameId).single(),
+        supabase.from('games').select('*').eq('id', gameId).maybeSingle(),
         supabase.from('game_players').select('*').eq('game_id', gameId),
       ]);
-      if (cancelled) return;
       if (gameData) setGame(gameData as unknown as DbGame);
       if (playerData) setGamePlayers(playerData as unknown as DbGamePlayer[]);
-
       if (uid) {
         const { data: handData } = await supabase
           .from('hands')
@@ -71,48 +65,76 @@ export function useOnlineGame(gameId: string | null): OnlineGameHook {
           .eq('game_id', gameId)
           .eq('player_id', uid)
           .maybeSingle();
-        if (!cancelled && handData) setMyHand(handData.cards as CardId[]);
+        if (handData) setMyHand(handData.cards as CardId[]);
       }
+    },
+    [gameId],
+  );
+
+  const refresh = useCallback(async () => {
+    await fetchAll(getSupabase(), userIdRef.current);
+  }, [fetchAll]);
+
+  useEffect(() => {
+    if (!gameId) return;
+    const supabase = getSupabase();
+    let cancelled = false;
+    let channel: ReturnType<SupabaseClient['channel']> | null = null;
+
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      const uid = session?.user?.id ?? null;
+      userIdRef.current = uid;
+      if (!cancelled) setUserId(uid);
+
+      // CRITICAL: hand the Realtime socket the user's JWT so RLS-scoped
+      // changes (games once out of lobby, and the private hands) are delivered.
+      if (session?.access_token) {
+        try {
+          await supabase.realtime.setAuth(session.access_token);
+        } catch {
+          /* ignore */
+        }
+      }
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(`online:${gameId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
+          (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+            if (payload.new && 'id' in payload.new) setGame(payload.new as unknown as DbGame);
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
+          async () => {
+            const { data } = await supabase.from('game_players').select('*').eq('game_id', gameId);
+            if (data) setGamePlayers(data as unknown as DbGamePlayer[]);
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'hands', filter: `game_id=eq.${gameId}` },
+          (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+            const row = payload.new;
+            if (row && 'cards' in row) setMyHand((row as { cards: CardId[] }).cards);
+          },
+        )
+        .subscribe();
+
+      await fetchAll(supabase, uid);
       if (!cancelled) setIsLoading(false);
-    };
-
-    load();
-
-    const channel = supabase
-      .channel(`online:${gameId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
-        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-          if (payload.new && 'id' in payload.new) setGame(payload.new as unknown as DbGame);
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
-        async () => {
-          const { data } = await supabase
-            .from('game_players')
-            .select('*')
-            .eq('game_id', gameId);
-          if (data) setGamePlayers(data as unknown as DbGamePlayer[]);
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'hands', filter: `game_id=eq.${gameId}` },
-        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-          const row = payload.new;
-          if (row && 'cards' in row) setMyHand((row as { cards: CardId[] }).cards);
-        },
-      )
-      .subscribe();
+    })();
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [gameId]);
+  }, [gameId, fetchAll]);
 
   // Resolve display names for everyone currently in the lobby.
   const playerIdsKey = gamePlayers.map((p) => p.player_id).sort().join(',');
@@ -161,10 +183,24 @@ export function useOnlineGame(gameId: string | null): OnlineGameHook {
         return msg;
       }
       setError(null);
+      // Refresh immediately so the acting player sees the result without
+      // waiting on the Realtime round-trip (other players get it via Realtime).
+      await refresh();
       return undefined;
     },
-    [gameId],
+    [gameId, refresh],
   );
 
-  return { game, gamePlayers, playerNames, myHand, userId, projected, isLoading, error, sendAction };
+  return {
+    game,
+    gamePlayers,
+    playerNames,
+    myHand,
+    userId,
+    projected,
+    isLoading,
+    error,
+    sendAction,
+    refresh,
+  };
 }

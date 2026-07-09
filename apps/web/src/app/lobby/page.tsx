@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePlayer } from '@/hooks/usePlayer';
 import { createOnlineGame, joinOnlineGame } from '@/lib/online';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function LobbyPage() {
   const router = useRouter();
@@ -74,9 +75,9 @@ export default function LobbyPage() {
           <button
             onClick={handleCreateGame}
             disabled={!ready || busy}
-            className="w-full rounded-lg bg-gold px-6 py-4 text-lg font-semibold text-bg transition hover:bg-gold-dim disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold px-6 py-4 text-lg font-semibold text-bg transition hover:bg-gold-dim disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Creer une partie
+            {busy ? <Spinner label="Création..." /> : 'Creer une partie'}
           </button>
 
           <div className="flex items-center gap-4">

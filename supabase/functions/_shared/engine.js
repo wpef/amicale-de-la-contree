@@ -1055,6 +1055,7 @@ function projectState(state, playerId) {
       tricksWon[team]++;
     }
   }
+  const roundPoints = state.phase === "playing" && state.contract ? calculateTrickPoints(state.tricks, state.contract.bid.suit) : { team1: 0, team2: 0 };
   return {
     id: state.id,
     roomCode: state.roomCode,
@@ -1075,6 +1076,7 @@ function projectState(state, playerId) {
     lastTrick,
     currentPlayer: state.currentPlayer,
     tricksWon,
+    roundPoints,
     beloteDeclared: state.beloteDeclared,
     roundScore: state.roundScore,
     roundHistory: state.roundHistory,
