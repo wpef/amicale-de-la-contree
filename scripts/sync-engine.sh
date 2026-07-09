@@ -1,25 +1,22 @@
 #!/usr/bin/env bash
-# Sync the built game engine into the Supabase Edge Functions shared folder.
-# The Edge Functions run on Deno and import the engine as local ESM modules.
+# Bundle the built game engine into a single ESM file for the Supabase Edge
+# Functions (Deno). The engine is pure TypeScript with zero dependencies, so it
+# bundles into one self-contained module that both `supabase functions deploy`
+# and the Supabase MCP deploy tool can ship without any relative _shared tree.
+#
 # Run this after changing packages/engine so the server-side engine stays in sync.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/packages/engine/dist"
-DEST="$ROOT/supabase/functions/_shared/engine"
+DEST="$ROOT/supabase/functions/_shared/engine.js"
 
 echo "Building @contree/engine..."
 pnpm --filter @contree/engine build >/dev/null
 
-echo "Syncing engine -> $DEST"
-rm -rf "$DEST"
-mkdir -p "$DEST"
+echo "Bundling engine -> $DEST"
+mkdir -p "$(dirname "$DEST")"
+pnpm exec esbuild "$ROOT/packages/engine/dist/index.js" \
+  --bundle --format=esm --platform=neutral --legal-comments=none \
+  --outfile="$DEST" >/dev/null
 
-# Copy only the runtime ESM (.js) files, preserving the directory structure.
-cd "$SRC"
-find . -name '*.js' -print0 | while IFS= read -r -d '' f; do
-  mkdir -p "$DEST/$(dirname "$f")"
-  cp "$f" "$DEST/$f"
-done
-
-echo "Engine synced ($(find "$DEST" -name '*.js' | wc -l | tr -d ' ') files)."
+echo "Engine bundled ($(wc -c < "$DEST" | tr -d ' ') bytes)."

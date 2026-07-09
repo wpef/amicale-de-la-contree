@@ -14,7 +14,7 @@ import {
   reconstructState,
   Seat,
   SEAT_ORDER,
-} from './engine/index.js';
+} from './engine.js';
 
 // The engine types are erased in the built JS; we use light local aliases.
 type AnyState = ReturnType<typeof createInitialState>;

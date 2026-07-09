@@ -38,9 +38,9 @@ s'abonnent via `postgres_changes` et recoivent les mises a jour automatiquement.
 
 ### Moteur dans Deno
 
-Le moteur (`packages/engine`) est copie, compile en ESM, dans
-`functions/_shared/engine/` pour tourner dans Deno. Apres toute modification du
-moteur, resynchroniser :
+Le moteur (`packages/engine`) est compile puis **bundle en un seul fichier ESM**
+`functions/_shared/engine.js` (via esbuild) pour tourner dans Deno. Apres toute
+modification du moteur, resynchroniser :
 
 ```bash
 ./scripts/sync-engine.sh

@@ -1,8 +1,12 @@
 -- Amicale de la Contree - Initial Schema
 -- Players, Games, Game Players, Hands
+--
+-- Tables are created first, then policies: several RLS policies reference
+-- other tables (e.g. the games policy references game_players), so every
+-- table must exist before any cross-referencing policy is declared.
 
 -- ============================================
--- PLAYERS
+-- TABLES
 -- ============================================
 CREATE TABLE players (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -10,26 +14,6 @@ CREATE TABLE players (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-ALTER TABLE players ENABLE ROW LEVEL SECURITY;
-
--- Anyone can read players (needed for lobby display)
-CREATE POLICY "Players are publicly readable"
-  ON players FOR SELECT
-  USING (true);
-
--- Players can insert their own row
-CREATE POLICY "Players can insert own profile"
-  ON players FOR INSERT
-  WITH CHECK (auth.uid() = id);
-
--- Players can update their own name
-CREATE POLICY "Players can update own profile"
-  ON players FOR UPDATE
-  USING (auth.uid() = id);
-
--- ============================================
--- GAMES
--- ============================================
 CREATE TABLE games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   room_code TEXT UNIQUE NOT NULL CHECK (char_length(room_code) = 4),
@@ -55,10 +39,50 @@ CREATE TABLE games (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+CREATE TABLE game_players (
+  game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+  player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+  seat TEXT NOT NULL CHECK (seat IN ('north', 'east', 'south', 'west')),
+  team TEXT NOT NULL CHECK (team IN ('team1', 'team2')),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (game_id, player_id)
+);
 
--- Lobby games are visible to everyone (for joining)
--- Active games visible only to participants
+CREATE TABLE hands (
+  game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+  player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+  cards JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (game_id, player_id)
+);
+
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hands ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- POLICIES: PLAYERS
+-- ============================================
+-- Anyone can read players (needed for lobby display)
+CREATE POLICY "Players are publicly readable"
+  ON players FOR SELECT
+  USING (true);
+
+-- Players can insert their own row
+CREATE POLICY "Players can insert own profile"
+  ON players FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
+-- Players can update their own name
+CREATE POLICY "Players can update own profile"
+  ON players FOR UPDATE
+  USING (auth.uid() = id);
+
+-- ============================================
+-- POLICIES: GAMES
+-- ============================================
+-- Lobby games are visible to everyone (for joining); active games only to participants
 CREATE POLICY "Lobby games are publicly readable"
   ON games FOR SELECT
   USING (
@@ -77,20 +101,9 @@ CREATE POLICY "Participants can update games"
   USING (id IN (SELECT game_id FROM game_players WHERE player_id = auth.uid()));
 
 -- ============================================
--- GAME PLAYERS (junction table)
+-- POLICIES: GAME PLAYERS
 -- ============================================
-CREATE TABLE game_players (
-  game_id UUID REFERENCES games(id) ON DELETE CASCADE,
-  player_id UUID REFERENCES players(id) ON DELETE CASCADE,
-  seat TEXT NOT NULL CHECK (seat IN ('north', 'east', 'south', 'west')),
-  team TEXT NOT NULL CHECK (team IN ('team1', 'team2')),
-  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (game_id, player_id)
-);
-
-ALTER TABLE game_players ENABLE ROW LEVEL SECURITY;
-
--- Game players are readable by all participants of the game
+-- Game players are readable by all participants of the game (and in lobby)
 CREATE POLICY "Game players are readable by participants"
   ON game_players FOR SELECT
   USING (
@@ -114,30 +127,17 @@ CREATE POLICY "Players can leave games"
   USING (auth.uid() = player_id);
 
 -- ============================================
--- HANDS (private - RLS enforced)
+-- POLICIES: HANDS (private - RLS enforced)
 -- ============================================
-CREATE TABLE hands (
-  game_id UUID REFERENCES games(id) ON DELETE CASCADE,
-  player_id UUID REFERENCES players(id) ON DELETE CASCADE,
-  cards JSONB NOT NULL DEFAULT '[]'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (game_id, player_id)
-);
-
-ALTER TABLE hands ENABLE ROW LEVEL SECURITY;
-
--- CRITICAL: Each player can ONLY see their own hand
+-- CRITICAL: Each player can ONLY see their own hand.
+-- Only the system (service role) inserts/updates hands via Edge Functions.
 CREATE POLICY "Players see only own hand"
   ON hands FOR SELECT
   USING (auth.uid() = player_id);
 
--- Only the system (service role) can insert/update hands
--- Players never directly modify hands; Edge Functions do it via service role
-
 -- ============================================
 -- FUNCTIONS
 -- ============================================
-
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -183,7 +183,6 @@ CREATE INDEX idx_game_players_game ON game_players(game_id);
 -- ============================================
 -- REALTIME
 -- ============================================
--- Enable realtime for games and hands tables
 ALTER PUBLICATION supabase_realtime ADD TABLE games;
 ALTER PUBLICATION supabase_realtime ADD TABLE hands;
 ALTER PUBLICATION supabase_realtime ADD TABLE game_players;
