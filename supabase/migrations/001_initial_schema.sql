@@ -62,6 +62,35 @@ ALTER TABLE game_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hands ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
+-- RLS HELPERS (SECURITY DEFINER)
+-- ============================================
+-- The games and game_players SELECT policies must reference each other's
+-- tables. Referencing them directly makes RLS recurse infinitely, so we use
+-- SECURITY DEFINER helpers that read the tables WITHOUT re-triggering RLS.
+CREATE OR REPLACE FUNCTION public.is_participant(gid uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.game_players
+    WHERE game_id = gid AND player_id = auth.uid()
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_lobby(gid uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.games WHERE id = gid AND status = 'lobby'
+  );
+$$;
+
+-- ============================================
 -- POLICIES: PLAYERS
 -- ============================================
 -- Anyone can read players (needed for lobby display)
@@ -85,10 +114,7 @@ CREATE POLICY "Players can update own profile"
 -- Lobby games are visible to everyone (for joining); active games only to participants
 CREATE POLICY "Lobby games are publicly readable"
   ON games FOR SELECT
-  USING (
-    status = 'lobby'
-    OR id IN (SELECT game_id FROM game_players WHERE player_id = auth.uid())
-  );
+  USING (status = 'lobby' OR public.is_participant(id));
 
 -- Any authenticated user can create a game
 CREATE POLICY "Authenticated users can create games"
@@ -98,7 +124,7 @@ CREATE POLICY "Authenticated users can create games"
 -- Only participants can update game state
 CREATE POLICY "Participants can update games"
   ON games FOR UPDATE
-  USING (id IN (SELECT game_id FROM game_players WHERE player_id = auth.uid()));
+  USING (public.is_participant(id));
 
 -- ============================================
 -- POLICIES: GAME PLAYERS
@@ -106,10 +132,7 @@ CREATE POLICY "Participants can update games"
 -- Game players are readable by all participants of the game (and in lobby)
 CREATE POLICY "Game players are readable by participants"
   ON game_players FOR SELECT
-  USING (
-    game_id IN (SELECT id FROM games WHERE status = 'lobby')
-    OR game_id IN (SELECT game_id FROM game_players gp WHERE gp.player_id = auth.uid())
-  );
+  USING (public.is_lobby(game_id) OR public.is_participant(game_id));
 
 -- Players can join games
 CREATE POLICY "Players can join games"
@@ -140,7 +163,9 @@ CREATE POLICY "Players see only own hand"
 -- ============================================
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
@@ -159,7 +184,9 @@ CREATE TRIGGER hands_updated_at
 
 -- Generate a random 4-letter room code
 CREATE OR REPLACE FUNCTION generate_room_code()
-RETURNS TEXT AS $$
+RETURNS TEXT
+SET search_path = ''
+AS $$
 DECLARE
   chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   result TEXT := '';
